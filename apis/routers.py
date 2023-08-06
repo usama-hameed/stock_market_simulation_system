@@ -1,9 +1,11 @@
 import json
+from typing import List
+
 from fastapi import FastAPI
 from fastapi.exceptions import HTTPException
-from .schemas import CreateUserBase, ListUserBase
+from .schemas import CreateUserBase, ListUserBase, StockBase, TransactionBase
 from db.connection import session
-from db.models import User, TransactionType, Transactions, StockData
+from db.models import User, Transactions, StockData
 from stock_data.kafka import consumer
 import redis
 from datetime import datetime
@@ -30,7 +32,6 @@ def create_user(user: CreateUserBase):
 def get_user(username: str):
     cache = rd.get(username)
     if cache:
-        print("CACHE HIT")
         return json.loads(cache)
     user = session.query(User).filter(User.username == username).first()
     if not user:
@@ -63,3 +64,63 @@ def add_stocks():
         session.refresh(stock)
     return {'message': 'Stock Data saved'}
 
+
+@app.get('/stocksdata', response_model=List[StockBase])
+def list_stocks():
+    final = []
+    cache = rd.get('stocks')
+    if cache:
+        return json.loads(cache)
+
+    stocks = session.query(StockData).all()
+    if not stocks:
+        raise HTTPException(detail="No Stocks Present", status_code=404)
+    for stock in stocks:
+        var = {
+            "ticker": stock.ticker,
+            "open_price": stock.open_price,
+            "class_price": stock.class_price,
+            "low": stock.low,
+            "high": stock.high,
+            "volume": stock.volume,
+            "timestamp": stock.timestamp
+        }
+        final.append(var)
+
+    final_json = json.dumps(final)
+
+    rd.set('stocks', final_json)
+    return final
+
+
+@app.get('stocks/{ticker}', response_model=StockBase)
+def get_stocks(ticker: int):
+    stocks = session.query(StockData).filter(StockData.ticker == ticker).first()
+    if not stocks:
+        raise HTTPException(status_code=404, detail="Stocks Data Not Found")
+    else:
+        return stocks
+
+
+@app.post('/transactions')
+def create_transactions(transactions: TransactionBase):
+    try:
+        transactions_data = Transactions(transaction_id=transactions.transaction_id, user_id=transactions.user_id,
+                                         ticker=transactions.ticker, transaction_type=transactions.transaction_type,
+                                         transaction_price=transactions.transaction_price,
+                                         timestamp=transactions.timestamp)
+        session.add(transactions_data)
+        session.commit()
+        session.refresh(transactions_data)
+        session.close()
+        return transactions_data
+    except Exception as error:
+        raise HTTPException(detail=error, status_code=500)
+
+
+@app.get('/transactions/{user_id}', response_model=TransactionBase)
+def get_transactions(user_id: int):
+    transactions = session.query(Transactions).filter(Transactions.user_id == user_id).first()
+    if not transactions:
+        raise HTTPException(detail="No Transactions found for this user", status_code=404)
+    return transactions
