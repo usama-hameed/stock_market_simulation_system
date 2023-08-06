@@ -9,10 +9,11 @@ from db.models import User, Transactions, StockData
 from stock_data.kafka import consumer
 import redis
 from datetime import datetime
+from data_processing.task import verify_transaction
 
 app = FastAPI()
 
-rd = redis.Redis(host='localhost', port=6379, db=0)
+rd = redis.Redis(host='redis', port=6379, db=0)
 
 
 @app.post('/user')
@@ -25,7 +26,7 @@ def create_user(user: CreateUserBase):
         session.close()
         return user_data
     except Exception as error:
-        raise HTTPException(detail=error, status_code=500)
+        raise HTTPException(detail=error, status_code=400)
 
 
 @app.get('/user/{username}', response_model=ListUserBase)
@@ -103,19 +104,9 @@ def get_stocks(ticker: int):
 
 
 @app.post('/transactions')
-def create_transactions(transactions: TransactionBase):
-    try:
-        transactions_data = Transactions(transaction_id=transactions.transaction_id, user_id=transactions.user_id,
-                                         ticker=transactions.ticker, transaction_type=transactions.transaction_type,
-                                         transaction_price=transactions.transaction_price,
-                                         timestamp=transactions.timestamp)
-        session.add(transactions_data)
-        session.commit()
-        session.refresh(transactions_data)
-        session.close()
-        return transactions_data
-    except Exception as error:
-        raise HTTPException(detail=error, status_code=500)
+def create_transactions(transactions: dict):
+    verify_transaction.apply_async(args=transactions)
+    return {'message': 'Task For Transaction Verification Submitted'}
 
 
 @app.get('/transactions/{user_id}', response_model=TransactionBase)
