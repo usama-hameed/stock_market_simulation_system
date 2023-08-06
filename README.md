@@ -2,7 +2,7 @@
 
 Folow the following steps to run the application
 1) mkdir stock_market_simulation_system
-2) cd srock_market_simulation_system
+2) cd stock_market_simulation_system
 3) git pull origin https://github.com/usama-hameed/stock_market_simulation_system.git
 4) docker-compose up
 
