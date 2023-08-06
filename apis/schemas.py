@@ -6,8 +6,7 @@ from sqlalchemy import exists
 from fastapi.exceptions import HTTPException
 
 
-class UserBase(BaseModel):
-    # user_id: int
+class CreateUserBase(BaseModel):
     username: str
     balance: int
 
@@ -17,6 +16,15 @@ class UserBase(BaseModel):
         if username_exists:
             raise HTTPException(detail="username already exist", status_code=400)
         return username
+
+    class Config:
+        orm_mode = True
+
+
+class ListUserBase(BaseModel):
+    user_id: int
+    username: str
+    balance: int
 
     class Config:
         orm_mode = True
