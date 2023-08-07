@@ -22,7 +22,7 @@ services:
   celery:
     build:
       context: .
-      dockerfile: fastapi.Dockerfile
+      dockerfile: Dockerfile
     command: celery -A celery_config worker --loglevel=info
     depends_on:
       - rabbitmq
