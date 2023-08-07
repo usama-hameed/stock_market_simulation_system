@@ -8,6 +8,8 @@ services:
       - "8000:8000"
     depends_on:
       - rabbitmq
+      - redis
+      - postgres
   rabbitmq:
     image: rabbitmq:3.8-management-alpine
     ports:
@@ -24,7 +26,7 @@ services:
     command: celery -A celery_config worker --loglevel=info
     depends_on:
       - rabbitmq
-      - main_app
+      - fastapi
 
     stdin_open: true
   redis:
